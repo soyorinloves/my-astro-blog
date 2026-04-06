@@ -1,49 +1,36 @@
+## 🌟 关于本站
 
-This website is built with the **Astro** framework using the [Mizuki](https://github.com/LyraVoid/Mizuki) theme.
+### 🎯 网站定位
+- **个人技术博客** - 记录学习、项目与思考的专属空间
+- **学习笔记** - 专注游戏开发、脚本逻辑与实战经验
+- **极简干净的阅读体验** - 无多余广告，专注内容本身
+- **响应式布局** - 电脑、平板、手机均可舒适浏览
 
-::github{repo="LyraVoid/Mizuki"}
+### 🔧 技术与工具
+- **代码编辑器** - VS Code / Visual Studio
+- **主要语言** - C#、Python、简单前端与 Web 部署
+- **学习方向** - Unity 游戏开发、计算机图形基础、TA 相关知识
+- **部署平台** - GitHub + Vercel 自动构建发布
 
-## 🌟 Theme Features
+### 📁 内容板块
+- **学习笔记** - C# 语法、Unity 组件、Shader 基础
+- **项目实战** - 小游戏 demo、角色控制、UI 系统
+- **技术杂谈** - 工具配置、环境搭建、效率技巧
+- **日常随记** - 偶尔分享生活、感悟与碎碎念
+- **友链与归档** - 整理文章、链接同好开发者
 
-### 🎨 Design & User Experience
-- **Modern & Elegant Design** - Clean, minimalist interface with beautiful typography
-- **Fully Responsive** - Optimized for all devices from mobile to desktop
-- **Dark/Light Mode** - Automatic theme switching with smooth transitions
-- **Beautiful Typography** - Enhanced readability with JetBrains Mono font
-- **Smooth Animations** - Fluid page transitions and interactive elements
+### 🎨 设计与体验
+- **明暗双主题** - 支持浅色 / 深色模式自由切换
+- **代码高亮展示** - 适合贴脚本、算法与配置片段
+- **流畅加载速度** - 纯静态站点，打开快速稳定
+- **简洁排版** - 专注阅读，不被花哨元素打扰
 
-### 🔍 Content & Search
-- **Advanced Search** - Powered by [Pagefind](https://pagefind.app/) for fast, accurate results
-- **Enhanced Markdown** - Extended syntax with code highlighting and math support
-- **Interactive Table of Contents** - Auto-scroll navigation for long articles
-- **RSS Feed Generation** - Stay updated with automatic feed generation
-- **Reading Time Estimation** - Know how long articles take to read
-- **Post Categorization** - Organize content with tags and categories
-
-
-
-### 📱 Special Pages
-- **Anime Tracking Page** - Track your anime watching progress with ratings
-- **Friends Links Page** - Showcase friend websites with beautiful cards
-- **Diary/Moments Page** - Share life moments like social media posts
-- **Archive Page** - Organized timeline view of all posts
-- **About Page** - Customizable personal introduction (this page!)
-
-### 🛠 Technical Features
-- **Enhanced Code Blocks** - Powered by [Expressive Code](https://expressive-code.com/)
-- **Math Support** - LaTeX rendering with KaTeX for mathematical expressions
-- **Image Optimization** - PhotoSwipe gallery with lazy loading
-- **SEO Optimized** - Built-in sitemap and meta tags for better search visibility
-- **Performance Optimized** - Fast loading with caching and optimization
-- **Comment System Ready** - Integration support for Twikoo comments
-
-### 🎯 Advanced Markdown Features
-- **Callouts & Admonitions** - Beautiful info boxes with `> [!NOTE]`, `> [!TIP]`, `> [!WARNING]`
-- **Mathematical Equations** - Write LaTeX math with `$inline$` and `$$block$$` syntax
-- **GitHub Cards** - Embed repository cards with `::github{repo="user/repo"}`
-- **Syntax Highlighting** - Advanced code highlighting with line numbers
-- **Copy Code Buttons** - Easy code copying functionality
+### 🚀 未来计划
+- **持续更新 Unity 与 C# 学习笔记**
+- **完善个人项目展示与源码分享**
+- **尝试简单图形学、渲染相关内容**
+- **慢慢搭建更完整的个人作品集**
 
 ---
 
-*Built with ❤️ using Astro and inspired by modern web design principles.*
+*用代码记录成长，用实践沉淀技术 ✨*
