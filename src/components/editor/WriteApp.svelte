@@ -22,8 +22,8 @@
 			await api.login(password);
 			authed = true;
 			password = "";
-		} catch (e) {
-			error = e instanceof Error ? e.message : "登录失败";
+		} catch {
+			error = "密码错误";
 		}
 	}
 

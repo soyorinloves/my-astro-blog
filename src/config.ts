@@ -272,7 +272,7 @@ export const navBarConfig: NavBarConfig = {
 		LinkPreset.Home,
 		LinkPreset.Archive,
 		{
-			name: "Write",
+			name: "写作",
 			url: "/write/",
 			icon: "", // 留空，后期自行填 iconify 图标名，如 "material-symbols:edit"
 		},

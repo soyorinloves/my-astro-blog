@@ -51,11 +51,11 @@ Vercel 项目 → Settings → Environment Variables，添加：
 
 ## 四、导航图标（留空占位）
 
-导航「Write」入口的图标目前留空，位于 `src/config.ts` 的 `navBarConfig.links` 数组里：
+导航「写作」入口的图标目前留空，位于 `src/config.ts` 的 `navBarConfig.links` 数组里：
 
 ```ts
 {
-  name: "Write",
+  name: "写作",
   url: "/write/",
   icon: "", // ← 这里填 iconify 图标名，如 "material-symbols:edit"
 },
