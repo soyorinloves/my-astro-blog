@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { api } from "./lib/api";
+	import { uploadImage } from "./lib/upload";
 
 	interface DiaryItem {
 		id: number;
@@ -118,6 +119,31 @@
 			message = String(e);
 		}
 	}
+
+	let imageInput: HTMLInputElement;
+	let imageUploading = false;
+
+	function pickImages() {
+		imageInput?.click();
+	}
+
+	async function onImagesPicked() {
+		const files = Array.from(imageInput?.files ?? []);
+		if (!files.length) return;
+		imageUploading = true;
+		try {
+			for (const file of files) {
+				const url = await uploadImage(file, "public/images/diary");
+				images = images.trim() ? images.trimEnd() + "\n" + url : url;
+			}
+			message = "图片上传成功 ✅";
+		} catch (e) {
+			message = `图片上传失败：${e}`;
+		} finally {
+			imageUploading = false;
+			if (imageInput) imageInput.value = "";
+		}
+	}
 </script>
 
 <div class="space-y-4">
@@ -133,11 +159,19 @@
 			<input bind:value={location} class="editor-input" placeholder="位置（可选）" />
 			<input bind:value={tags} class="editor-input" placeholder="标签，逗号分隔" />
 		</div>
-		<textarea
-			bind:value={images}
-			class="editor-textarea text-sm"
-			placeholder="图片 URL，一行一个（可选）"
-		></textarea>
+		<div>
+			<textarea
+				bind:value={images}
+				class="editor-textarea text-sm"
+				placeholder="图片 URL，一行一个（可选）"
+			></textarea>
+			<div class="flex items-center gap-2 mt-2">
+				<input type="file" accept="image/*" multiple bind:this={imageInput} class="hidden" on:change={onImagesPicked} />
+				<button type="button" class="editor-btn editor-btn-ghost" on:click={pickImages} disabled={imageUploading}>
+					{imageUploading ? "上传中…" : "上传图片（可多选）"}
+				</button>
+			</div>
+		</div>
 		<div class="flex gap-2">
 			<button class="editor-btn-primary" on:click={save}>{editingId ? "保存修改" : "发布"}</button>
 			{#if editingId}

@@ -2,6 +2,7 @@
 	import { onMount } from "svelte";
 	import { api } from "./lib/api";
 	import { parseFrontmatter, stringifyFrontmatter, type Frontmatter } from "./lib/frontmatter";
+	import { uploadImage } from "./lib/upload";
 	import MarkdownPreview from "./MarkdownPreview.svelte";
 
 	let title = "";
@@ -174,33 +175,39 @@
 		}
 	}
 
-	async function uploadImage(file: File): Promise<string> {
-		const buf = await file.arrayBuffer();
-		const bytes = new Uint8Array(buf);
-		const hashBytes = await crypto.subtle.digest("SHA-256", bytes);
-		const hash = Array.from(new Uint8Array(hashBytes))
-			.slice(0, 8)
-			.map((b) => b.toString(16).padStart(2, "0"))
-			.join("");
-		const extn = file.name.split(".").pop() || "png";
-		const filename = `${hash}.${extn}`;
-		const base64 = btoa(String.fromCharCode(...bytes));
-		const path = `public/images/posts/${slug || "draft"}/${filename}`;
-		await api.commit({ path, content: base64, message: `feat(blog): upload image ${filename}`, base64: true });
-		return `/images/posts/${slug || "draft"}/${filename}`;
-	}
-
 	async function onPaste(e: ClipboardEvent) {
 		const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
 		if (!files.length) return;
 		e.preventDefault();
 		for (const file of files) {
 			try {
-				const url = await uploadImage(file);
+				const url = await uploadImage(file, `public/images/posts/${slug || "draft"}`);
 				body += `\n![${file.name}](${url})\n`;
 			} catch (err) {
 				message = `图片上传失败：${err}`;
 			}
+		}
+	}
+
+	let coverInput: HTMLInputElement;
+	let coverUploading = false;
+
+	function pickCover() {
+		coverInput?.click();
+	}
+
+	async function onCoverPicked() {
+		const file = coverInput?.files?.[0];
+		if (!file) return;
+		coverUploading = true;
+		try {
+			image = await uploadImage(file, `public/images/posts/${slug || "draft"}`);
+			message = "封面上传成功 ✅";
+		} catch (e) {
+			message = `封面上传失败：${e}`;
+		} finally {
+			coverUploading = false;
+			if (coverInput) coverInput.value = "";
 		}
 	}
 
@@ -247,10 +254,16 @@
 				<span>发布日期 (YYYY-MM-DD)</span>
 				<input bind:value={published} class="editor-input mt-1" placeholder="2026-08-20" />
 			</label>
-			<label class="editor-label">
+			<div class="editor-label">
 				<span>封面图路径 / URL</span>
-				<input bind:value={image} class="editor-input mt-1" placeholder="./cover.png 或 https://…" />
-			</label>
+				<div class="flex gap-2 mt-1">
+					<input bind:value={image} class="editor-input" placeholder="./cover.png 或 https://…" />
+					<input type="file" accept="image/*" bind:this={coverInput} class="hidden" on:change={onCoverPicked} />
+					<button type="button" class="editor-btn editor-btn-ghost shrink-0" on:click={pickCover} disabled={coverUploading}>
+						{coverUploading ? "上传中…" : "上传"}
+					</button>
+				</div>
+			</div>
 			<label class="editor-label">
 				<span>分类</span>
 				<input bind:value={category} class="editor-input mt-1" placeholder="Examples" />
