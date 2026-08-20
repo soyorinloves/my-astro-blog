@@ -175,17 +175,62 @@
 		}
 	}
 
+	let bodyTextarea: HTMLTextAreaElement;
+
+	// 在正文指定位置插入内容，并把光标移到插入内容之后
+	function insertSnippet(snippet: string, start: number, end: number) {
+		body = body.slice(0, start) + snippet + body.slice(end);
+		const pos = start + snippet.length;
+		requestAnimationFrame(() => {
+			if (bodyTextarea) {
+				bodyTextarea.focus();
+				bodyTextarea.selectionStart = bodyTextarea.selectionEnd = pos;
+			}
+		});
+	}
+
 	async function onPaste(e: ClipboardEvent) {
 		const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
 		if (!files.length) return;
 		e.preventDefault();
+		const start = bodyTextarea?.selectionStart ?? body.length;
+		const end = bodyTextarea?.selectionEnd ?? body.length;
 		for (const file of files) {
 			try {
 				const url = await uploadImage(file, `public/images/posts/${slug || "draft"}`);
-				body += `\n![${file.name}](${url})\n`;
+				insertSnippet(`\n![${file.name}](${url})\n`, start, end);
 			} catch (err) {
 				message = `图片上传失败：${err}`;
 			}
+		}
+	}
+
+	let bodyImageInput: HTMLInputElement;
+	let bodyImageUploading = false;
+	let pendingCursor: { start: number; end: number } | null = null;
+
+	function pickBodyImage() {
+		pendingCursor = bodyTextarea
+			? { start: bodyTextarea.selectionStart ?? body.length, end: bodyTextarea.selectionEnd ?? body.length }
+			: { start: body.length, end: body.length };
+		bodyImageInput?.click();
+	}
+
+	async function onBodyImagePicked() {
+		const file = bodyImageInput?.files?.[0];
+		const cursor = pendingCursor ?? { start: body.length, end: body.length };
+		pendingCursor = null;
+		if (!file) return;
+		bodyImageUploading = true;
+		try {
+			const url = await uploadImage(file, `public/images/posts/${slug || "draft"}`);
+			insertSnippet(`\n![${file.name}](${url})\n`, cursor.start, cursor.end);
+			message = "图片已插入 ✅";
+		} catch (e) {
+			message = `图片上传失败：${e}`;
+		} finally {
+			bodyImageUploading = false;
+			if (bodyImageInput) bodyImageInput.value = "";
 		}
 	}
 
@@ -238,8 +283,16 @@
 			<input bind:value={slug} class="editor-input font-mono text-sm" placeholder="slug（如 my-first-post）" />
 			<span class="text-black/40 dark:text-white/40 text-sm self-center">.{ext}</span>
 		</div>
+		<div class="flex items-center gap-2 mb-2">
+			<input type="file" accept="image/*" bind:this={bodyImageInput} class="hidden" on:change={onBodyImagePicked} />
+			<button type="button" class="editor-btn editor-btn-ghost" on:click={pickBodyImage} disabled={bodyImageUploading}>
+				{bodyImageUploading ? "上传中…" : "插入图片"}
+			</button>
+			<span class="text-xs text-black/40 dark:text-white/40">也可直接 Ctrl+V 粘贴图片</span>
+		</div>
 		<textarea
 			bind:value={body}
+			bind:this={bodyTextarea}
 			class="editor-textarea font-mono text-sm min-h-[40vh]"
 			placeholder="Markdown 正文…"
 			on:keydown={onKeydown}
