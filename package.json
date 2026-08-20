@@ -27,7 +27,9 @@
 		"lhci": "lhci",
 		"lighthouse": "lighthouse",
 		"performance:baseline": "node scripts/performance-baseline.js",
-		"performance:check": "node scripts/performance-check.js"
+		"performance:check": "node scripts/performance-check.js",
+		"test": "node --test",
+		"hash-password": "node scripts/hash-password.mjs"
 	},
 	"dependencies": {
 		"@astrojs/check": "^0.9.8",

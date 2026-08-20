@@ -1,0 +1,346 @@
+<script lang="ts">
+	import { onMount } from "svelte";
+	import { api } from "./lib/api";
+	import { parseFrontmatter, stringifyFrontmatter, type Frontmatter } from "./lib/frontmatter";
+	import MarkdownPreview from "./MarkdownPreview.svelte";
+
+	let title = "";
+	let slug = "";
+	let body = "";
+	let summary = "";
+	let tags = "";
+	let category = "";
+	let published = "";
+	let isDraft = false;
+	let pinned = false;
+	let priority = "";
+	let lang = "";
+	let image = "";
+	let comment = true;
+
+	let ext = "md";
+	let baseSha: string | undefined;
+	let isEdit = false;
+	let savedSha: string | undefined;
+	let saving = false;
+	let message = "";
+	let showPreview = false;
+	let advanced = false;
+
+	// 高级字段
+	let permalink = "";
+	let alias = "";
+	let password = "";
+	let passwordHint = "";
+	let encrypted = false;
+	let author = "";
+	let licenseName = "";
+
+	const DRAFT_KEY = "draft:write:new";
+	let debounce: ReturnType<typeof setTimeout>;
+
+	onMount(async () => {
+		const params = new URLSearchParams(window.location.search);
+		const s = params.get("slug");
+		if (s) {
+			await load(s);
+		} else {
+			restoreDraft();
+		}
+	});
+
+	async function load(s: string) {
+		slug = s;
+		const candidates = [`.md`, `.mdx`];
+		for (const suffix of candidates) {
+			const path = `src/content/posts/${s}${suffix}`;
+			try {
+				const res = await api.read(path);
+				const { data, body: b } = parseFrontmatter(res.content);
+				title = String(data.title ?? "");
+				body = b;
+				summary = String(data.description ?? "");
+				tags = (data.tags as string[] | undefined)?.join(", ") ?? "";
+				category = String(data.category ?? "");
+				published = String(data.published ?? "");
+				isDraft = Boolean(data.draft);
+				pinned = Boolean(data.pinned);
+				priority = String(data.priority ?? "");
+				lang = String(data.lang ?? "");
+				image = String(data.image ?? "");
+				comment = data.comment !== false;
+				permalink = String(data.permalink ?? "");
+				alias = String(data.alias ?? "");
+				password = String(data.password ?? "");
+				passwordHint = String(data.passwordHint ?? "");
+				encrypted = Boolean(data.encrypted);
+				author = String(data.author ?? "");
+				licenseName = String(data.licenseName ?? "");
+				ext = suffix.slice(1);
+				baseSha = res.sha;
+				isEdit = true;
+				return;
+			} catch {
+				// 尝试下一个后缀
+			}
+		}
+		message = "加载失败：找不到该文章";
+	}
+
+	function buildFrontmatter(): Frontmatter {
+		const data: Frontmatter = { title };
+		if (published) data.published = published;
+		else data.published = new Date().toISOString().slice(0, 10);
+		data.description = summary;
+		if (image) data.image = image;
+		if (tags.trim()) data.tags = tags.split(",").map((t) => t.trim()).filter(Boolean);
+		if (category) data.category = category;
+		data.draft = isDraft;
+		if (pinned) data.pinned = true;
+		if (priority && Number.isFinite(Number(priority))) data.priority = Number(priority);
+		if (lang) data.lang = lang;
+		if (!comment) data.comment = false;
+		if (permalink) data.permalink = permalink;
+		if (alias) data.alias = alias;
+		if (password) data.password = password;
+		if (passwordHint) data.passwordHint = passwordHint;
+		if (encrypted) data.encrypted = true;
+		if (author) data.author = author;
+		if (licenseName) data.licenseName = licenseName;
+		return data;
+	}
+
+	function saveDraft() {
+		clearTimeout(debounce);
+		debounce = setTimeout(() => {
+			localStorage.setItem(
+				DRAFT_KEY,
+				JSON.stringify({ title, slug, body, summary, tags, category, published, image, ext }),
+			);
+		}, 1500);
+	}
+
+	function restoreDraft() {
+		const raw = localStorage.getItem(DRAFT_KEY);
+		if (!raw) return;
+		try {
+			const d = JSON.parse(raw);
+			title = d.title ?? "";
+			slug = d.slug ?? "";
+			body = d.body ?? "";
+			summary = d.summary ?? "";
+			tags = d.tags ?? "";
+			category = d.category ?? "";
+			published = d.published ?? "";
+			image = d.image ?? "";
+			ext = d.ext ?? "md";
+		} catch {
+			/* 忽略损坏的草稿 */
+		}
+	}
+
+	async function publish() {
+		if (!title.trim()) return (message = "请填写标题");
+		if (!slug.trim()) return (message = "请填写 slug");
+		saving = true;
+		message = "";
+		const path = `src/content/posts/${slug}.${ext}`;
+		const content = stringifyFrontmatter(buildFrontmatter(), body);
+		const verb = isEdit ? "update" : "publish";
+		const commitMessage = `feat(blog): ${verb} post "${title}"`;
+		try {
+			const res = await api.commit({ path, content, message: commitMessage, baseSha });
+			baseSha = res.sha;
+			savedSha = res.sha;
+			isEdit = true;
+			message = "已发布 ✅（稍后 Vercel 重新构建后可见）";
+			localStorage.removeItem(DRAFT_KEY);
+		} catch (e) {
+			message = e instanceof Error && e.code === 409 ? "文件已被他人修改，请刷新后重试" : String(e);
+		} finally {
+			saving = false;
+		}
+	}
+
+	async function remove() {
+		if (!isEdit || !baseSha) return (message = "只有已保存的文章可删除");
+		if (!confirm(`确定删除文章「${title}」？此操作不可恢复。`)) return;
+		const path = `src/content/posts/${slug}.${ext}`;
+		try {
+			await api.remove({ path, message: `feat(blog): delete post "${title}"`, sha: baseSha });
+			message = "已删除 ✅";
+		} catch (e) {
+			message = String(e);
+		}
+	}
+
+	async function uploadImage(file: File): Promise<string> {
+		const buf = await file.arrayBuffer();
+		const bytes = new Uint8Array(buf);
+		const hashBytes = await crypto.subtle.digest("SHA-256", bytes);
+		const hash = Array.from(new Uint8Array(hashBytes))
+			.slice(0, 8)
+			.map((b) => b.toString(16).padStart(2, "0"))
+			.join("");
+		const extn = file.name.split(".").pop() || "png";
+		const filename = `${hash}.${extn}`;
+		const base64 = btoa(String.fromCharCode(...bytes));
+		const path = `public/images/posts/${slug || "draft"}/${filename}`;
+		await api.commit({ path, content: base64, message: `feat(blog): upload image ${filename}`, base64: true });
+		return `/images/posts/${slug || "draft"}/${filename}`;
+	}
+
+	async function onPaste(e: ClipboardEvent) {
+		const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
+		if (!files.length) return;
+		e.preventDefault();
+		for (const file of files) {
+			try {
+				const url = await uploadImage(file);
+				body += `\n![${file.name}](${url})\n`;
+			} catch (err) {
+				message = `图片上传失败：${err}`;
+			}
+		}
+	}
+
+	function onKeydown(e: KeyboardEvent) {
+		const ta = e.target as HTMLTextAreaElement;
+		if (!ta || ta.tagName !== "TEXTAREA") return;
+		const mod = e.ctrlKey || e.metaKey;
+		if (mod && e.key.toLowerCase() === "b") {
+			e.preventDefault();
+			document.execCommand("insertText", false, "**加粗**");
+		} else if (mod && e.key.toLowerCase() === "i") {
+			e.preventDefault();
+			document.execCommand("insertText", false, "*斜体*");
+		} else if (mod && e.key.toLowerCase() === "k") {
+			e.preventDefault();
+			document.execCommand("insertText", false, "[链接文字](https://)");
+		} else if (e.key === "Tab") {
+			e.preventDefault();
+			document.execCommand("insertText", false, "  ");
+		}
+	}
+</script>
+
+<div class="space-y-4">
+	<div class="card-base p-5 space-y-3">
+		<input bind:value={title} class="editor-input text-xl font-bold" placeholder="标题" />
+		<div class="flex gap-2">
+			<input bind:value={slug} class="editor-input font-mono text-sm" placeholder="slug（如 my-first-post）" />
+			<span class="text-black/40 dark:text-white/40 text-sm self-center">.{ext}</span>
+		</div>
+		<textarea
+			bind:value={body}
+			class="editor-textarea font-mono text-sm min-h-[40vh]"
+			placeholder="Markdown 正文…"
+			on:keydown={onKeydown}
+			on:paste={onPaste}
+			on:input={saveDraft}
+		></textarea>
+	</div>
+
+	<div class="card-base p-5 space-y-3">
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+			<label class="editor-label">
+				<span>发布日期 (YYYY-MM-DD)</span>
+				<input bind:value={published} class="editor-input mt-1" placeholder="2026-08-20" />
+			</label>
+			<label class="editor-label">
+				<span>封面图路径 / URL</span>
+				<input bind:value={image} class="editor-input mt-1" placeholder="./cover.png 或 https://…" />
+			</label>
+			<label class="editor-label">
+				<span>分类</span>
+				<input bind:value={category} class="editor-input mt-1" placeholder="Examples" />
+			</label>
+			<label class="editor-label">
+				<span>标签（逗号分隔）</span>
+				<input bind:value={tags} class="editor-input mt-1" placeholder="Markdown, Blogging" />
+			</label>
+			<label class="editor-label sm:col-span-2">
+				<span>摘要</span>
+				<input bind:value={summary} class="editor-input mt-1" placeholder="一句话描述" />
+			</label>
+		</div>
+
+		<div class="flex flex-wrap gap-4 text-sm">
+			<label class="flex items-center gap-2">
+				<input type="checkbox" bind:checked={isDraft} class="editor-check" />
+				草稿（隐藏）
+			</label>
+			<label class="flex items-center gap-2">
+				<input type="checkbox" bind:checked={pinned} class="editor-check" />
+				置顶
+			</label>
+			<label class="flex items-center gap-2">
+				<input type="checkbox" bind:checked={comment} class="editor-check" />
+				允许评论
+			</label>
+			<label class="flex items-center gap-2">
+				<span class="text-black/60 dark:text-white/60">置顶优先级</span>
+				<input bind:value={priority} class="editor-input w-20" />
+			</label>
+		</div>
+
+		<button class="text-sm text-primary underline" on:click={() => (advanced = !advanced)}>
+			{advanced ? "收起高级字段" : "展开高级字段"}
+		</button>
+		{#if advanced}
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+				<label class="editor-label">
+					<span>permalink</span>
+					<input bind:value={permalink} class="editor-input mt-1" placeholder="custom-url" />
+				</label>
+				<label class="editor-label">
+					<span>alias</span>
+					<input bind:value={alias} class="editor-input mt-1" />
+				</label>
+				<label class="editor-label">
+					<span>作者</span>
+					<input bind:value={author} class="editor-input mt-1" />
+				</label>
+				<label class="editor-label">
+					<span>许可证名</span>
+					<input bind:value={licenseName} class="editor-input mt-1" />
+				</label>
+				<label class="flex items-center gap-2 text-sm sm:col-span-2">
+					<input type="checkbox" bind:checked={encrypted} class="editor-check" />
+					加密文章（需要密码查看）
+				</label>
+				<label class="editor-label">
+					<span>密码</span>
+					<input bind:value={password} class="editor-input mt-1" />
+				</label>
+				<label class="editor-label">
+					<span>密码提示</span>
+					<input bind:value={passwordHint} class="editor-input mt-1" />
+				</label>
+			</div>
+		{/if}
+	</div>
+
+	<div class="flex flex-wrap items-center gap-2">
+		<button class="editor-btn-primary" disabled={saving} on:click={publish}>
+			{saving ? "发布中…" : isEdit ? "更新" : "发布"}
+		</button>
+		{#if isEdit}
+			<button class="editor-btn-danger" on:click={remove}>删除</button>
+		{/if}
+		<button class="editor-btn editor-btn-ghost" on:click={() => (showPreview = !showPreview)}>
+			{showPreview ? "关闭预览" : "预览"}
+		</button>
+	</div>
+
+	{#if message}
+		<p class="text-sm {message.startsWith('已') ? 'text-success' : 'text-error'}">{message}</p>
+	{/if}
+
+	{#if showPreview}
+		<div class="card-base p-5">
+			<h2 class="font-bold text-lg mb-3">{title || "预览"}</h2>
+			<MarkdownPreview {body} />
+		</div>
+	{/if}
+</div>

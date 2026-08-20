@@ -271,6 +271,11 @@ export const navBarConfig: NavBarConfig = {
 	links: [
 		LinkPreset.Home,
 		LinkPreset.Archive,
+		{
+			name: "Write",
+			url: "/write/",
+			icon: "", // 留空，后期自行填 iconify 图标名，如 "material-symbols:edit"
+		},
 		// 支持自定义导航栏链接，支持多级菜单
 		{
 			name: "Links",
